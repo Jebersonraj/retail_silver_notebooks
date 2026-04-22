@@ -1,0 +1,351 @@
+{
+  "name": "AI Study Assistant - Revision Plan, Flashcards & Quiz",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodes": [
+    {
+      "id": "node-chat-trigger",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "position": [0, 0],
+      "webhookId": "study-assistant-chat-trigger",
+      "parameters": {
+        "options": {
+          "allowFileUploads": true
+        }
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "node-check-input-type",
+      "name": "Check Input Type (PDF or Text?)",
+      "type": "n8n-nodes-base.if",
+      "position": [240, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "id": "cond-1",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "leftValue": "={{ $json?.chatInput ?? '' }}",
+              "rightValue": ".pdf"
+            },
+            {
+              "id": "cond-2",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "leftValue": "={{ $binary }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "node-extract-pdf",
+      "name": "Extract Text from PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [480, -160],
+      "parameters": {
+        "operation": "toText"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "node-set-pdf-content",
+      "name": "Set Extracted PDF Content",
+      "type": "n8n-nodes-base.set",
+      "position": [720, -160],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-content",
+              "name": "studyContent",
+              "type": "string",
+              "value": "={{ $json.data }}"
+            },
+            {
+              "id": "field-source",
+              "name": "inputSource",
+              "type": "string",
+              "value": "PDF Upload"
+            },
+            {
+              "id": "field-chat",
+              "name": "userRequest",
+              "type": "string",
+              "value": "={{ $('Chat Trigger').item.json.chatInput || 'Process this document and help me study it.' }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "node-set-text-content",
+      "name": "Set Plain Text Content",
+      "type": "n8n-nodes-base.set",
+      "position": [480, 160],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-content2",
+              "name": "studyContent",
+              "type": "string",
+              "value": "={{ $json.chatInput }}"
+            },
+            {
+              "id": "field-source2",
+              "name": "inputSource",
+              "type": "string",
+              "value": "Text Input"
+            },
+            {
+              "id": "field-chat2",
+              "name": "userRequest",
+              "type": "string",
+              "value": "={{ $json.chatInput }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "node-merge",
+      "name": "Merge Paths",
+      "type": "n8n-nodes-base.merge",
+      "position": [960, 0],
+      "parameters": {
+        "mode": "chooseBranch",
+        "chooseBranchMode": "waitForBoth",
+        "output": "both"
+      },
+      "typeVersion": 3
+    },
+    {
+      "id": "node-detect-intent",
+      "name": "Detect User Intent",
+      "type": "n8n-nodes-base.code",
+      "position": [1200, 0],
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst req = (item.userRequest || item.studyContent || '').toLowerCase();\n\nlet intent = 'process'; // default: just uploaded a PDF or pasted text\n\nif (req.includes('quiz') || req.includes('test me') || req.includes('question me')) {\n  intent = 'quiz';\n} else if (req.includes('flashcard') || req.includes('flash card') || req.includes('key terms') || req.includes('key concepts')) {\n  intent = 'flashcards';\n} else if (req.includes('revision plan') || req.includes('study plan') || req.includes('schedule') || req.includes('plan')) {\n  intent = 'revision_plan';\n} else if (req.includes('summarize') || req.includes('summary') || req.includes('explain') || req.includes('what is') || req.includes('help me understand')) {\n  intent = 'explain';\n}\n\nreturn {\n  studyContent: item.studyContent,\n  userRequest: item.userRequest,\n  inputSource: item.inputSource,\n  intent\n};"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "node-ai-agent",
+      "name": "AI Study Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [1440, 0],
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a friendly, expert Study Assistant AI that helps students truly UNDERSTAND their study material — not just memorize it.\n\n---\n📄 INPUT SOURCE: {{ $json.inputSource }}\n🎯 DETECTED INTENT: {{ $json.intent }}\n💬 USER REQUEST: {{ $json.userRequest }}\n\n📚 STUDY CONTENT:\n{{ $json.studyContent }}\n\n---\n\nBased on the DETECTED INTENT above, respond as follows:\n\n═══════════════════════════════════════\n🔹 IF INTENT = \"process\" OR \"explain\":\n═══════════════════════════════════════\nDo ALL of the following in one response:\n\n1. **📝 Topic Overview**\n   - Identify the subject/topic from the content\n   - Write a simple 3–5 line plain English summary a student can easily understand\n\n2. **📌 Key Concepts** (list 5–8 core ideas)\n   - For each: give a one-line plain English explanation + a real-world analogy or example\n\n3. **🗓️ Revision Plan** (7-day schedule)\n   - Day-by-day plan with specific topics from the content\n   - Include: what to read, what to practice, what to revise\n   - Keep it realistic (30–60 mins/day)\n\n4. **🃏 Flashcards** (10 cards)\n   Format each as:\n   ┌─────────────────────────────┐\n   │ Q: [question]              │\n   │ A: [clear, simple answer]  │\n   └─────────────────────────────┘\n\n5. **✅ Quick Quiz** (5 questions)\n   - Mix of MCQ and short answer\n   - After each question, add a small hint in italics\n   - Put answers at the very end in a collapsible-style section\n\n═══════════════════════════════════════\n🔹 IF INTENT = \"revision_plan\":\n═══════════════════════════════════════\nGenerate a detailed **7-day Revision Plan** based on the content:\n- Break the content into logical daily chunks\n- Day 1–2: Introduction & core concepts\n- Day 3–4: Deep dive & problem practice\n- Day 5: Review weak areas\n- Day 6: Full mock practice\n- Day 7: Quick revision & confidence boost\n- For each day: mention exact topics, suggested activity (read/write/practice), and time estimate\n- End with 3 exam tips specific to this subject\n\n═══════════════════════════════════════\n🔹 IF INTENT = \"flashcards\":\n═══════════════════════════════════════\nGenerate **15 Flashcards** from the content:\n- Cover all major concepts, definitions, and formulas\n- Format each as:\n  ┌─────────────────────────────┐\n  │ 🃏 Card #N                  │\n  │ Q: [clear question]        │\n  │ A: [short, precise answer] │\n  │ 💡 Tip: [memory hook]      │\n  └─────────────────────────────┘\n- Group cards by topic/chapter if multiple topics exist\n- End with a \"Study Tip\" on how to use flashcards effectively\n\n═══════════════════════════════════════\n🔹 IF INTENT = \"quiz\":\n═══════════════════════════════════════\nGenerate a **10-Question Quiz** based on the content:\n- 5 Multiple Choice Questions (with 4 options each, label A/B/C/D)\n- 3 True/False Questions\n- 2 Short Answer Questions\n\nFormat:\n  **Q1.** [Question text]\n  A) ... B) ... C) ... D) ...\n  *Hint: [small hint without giving away answer]*\n\nAt the end, add a section:\n## ✅ Answer Key\n(List all answers clearly)\n\nAlso add a **Score Interpretation** section:\n- 9–10: Excellent! You're ready.\n- 7–8: Good, review the weak areas.\n- 5–6: Needs more revision.\n- Below 5: Go through the material again carefully.\n\n---\n\n🎨 FORMATTING RULES (always follow these):\n- Use emojis to make it friendly and scannable\n- Use headers and subheaders for structure\n- Use simple language — explain like the student is hearing this for the first time\n- Avoid jargon unless you explain it immediately after\n- Use bullet points, numbered lists, and tables where helpful\n- Always end with an encouraging message like: \"You've got this! 💪\"",
+        "options": {
+          "systemMessage": "You are a warm, encouraging, expert study assistant. Your #1 goal is to make complex topics easy to understand for students. Always use simple language, real-world examples, and a friendly tone. Structure your responses clearly with emojis and formatting so they are easy to read and follow."
+        }
+      },
+      "typeVersion": 1.7
+    },
+    {
+      "id": "node-openai",
+      "name": "OpenAI GPT-4o",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [1360, 224],
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 4096
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "node-memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [1560, 224],
+      "parameters": {
+        "sessionIdType": "fromInput",
+        "sessionKey": "sessionId",
+        "contextWindowLength": 20
+      },
+      "typeVersion": 1.3
+    },
+    {
+      "id": "node-sticky-main",
+      "name": "Sticky Note - Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-320, -320],
+      "parameters": {
+        "width": 700,
+        "height": 580,
+        "content": "# 🎓 AI Study Assistant Workflow\n\n## What it does:\nAccepts **PDF uploads OR plain text** via Chat, detects the student's intent, and responds with:\n- 📝 Full Topic Overview & Summary\n- 🗓️ 7-Day Revision Plan\n- 🃏 Flashcards (Q&A format)\n- ✅ Quiz with Answer Key\n\n## How to trigger different modes:\n- Upload a PDF → auto-detects and generates full study pack\n- Type notes/syllabus → same as above\n- Ask **\"quiz me\"** → generates a 10-question quiz\n- Ask **\"give me flashcards\"** → generates 15 flashcards\n- Ask **\"make a revision plan\"** → generates a 7-day schedule\n- Ask **\"explain this\"** or **\"summarize\"** → explains with examples\n\n## Setup Required:\n1. Add your **OpenAI API Key** to the OpenAI node\n2. Activate the workflow\n3. Open the Chat interface and start studying! 🚀"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "node-sticky-pdf",
+      "name": "Sticky Note - PDF Path",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [400, -320],
+      "parameters": {
+        "color": 3,
+        "width": 280,
+        "height": 120,
+        "content": "## 📄 PDF Path\nUser uploads a PDF file → text is extracted automatically → passed to AI Agent"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "node-sticky-text",
+      "name": "Sticky Note - Text Path",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [400, 80],
+      "parameters": {
+        "color": 5,
+        "width": 280,
+        "height": 120,
+        "content": "## 💬 Text Path\nUser types or pastes notes/syllabus directly into the chat → passed straight to AI Agent"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Input Type (PDF or Text?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Input Type (PDF or Text?)": {
+      "main": [
+        [
+          {
+            "node": "Extract Text from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Plain Text Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text from PDF": {
+      "main": [
+        [
+          {
+            "node": "Set Extracted PDF Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Extracted PDF Content": {
+      "main": [
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Plain Text Content": {
+      "main": [
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Paths": {
+      "main": [
+        [
+          {
+            "node": "Detect User Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect User Intent": {
+      "main": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "pinData": {}
+}
