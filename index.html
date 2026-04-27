@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyMind</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cream: #f5f0e8;
+  --paper: #faf8f4;
+  --ink: #1a1814;
+  --ink2: #4a4640;
+  --ink3: #9a9490;
+  --rule: #e8e3da;
+  --rule2: #d4cdc2;
+  --amber: #c8781a;
+  --amber-light: #f5e6cc;
+  --green: #2d7a4f;
+  --red: #c0392b;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'Geist', 'SF Pro Text', -apple-system, sans-serif;
+  --r: 6px;
+}
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--sans);
+  background: var(--cream);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  height: 100vh;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── sidebar ── */
+aside {
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 0 20px;
+  background: var(--paper);
+}
+
+.brand {
+  padding: 0 20px 24px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand-name {
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.brand-name span { color: var(--amber); font-style: italic; }
+
+.brand-tag {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 3px;
+  font-weight: 300;
+  letter-spacing: 0.3px;
+}
+
+.sidebar-section { padding: 20px 20px 0; }
+
+.sidebar-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink3);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.mode-list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+
+.mode-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: var(--r);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink2);
+  font-weight: 400;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--sans);
+}
+
+.mode-item:hover { background: var(--cream); color: var(--ink); }
+.mode-item.active { background: var(--amber-light); color: var(--amber); font-weight: 500; }
+.mode-icon { width: 18px; text-align: center; flex-shrink: 0; font-style: normal; }
+
+.sidebar-divider { border: none; border-top: 1px solid var(--rule); margin: 20px 0; }
+
+.sidebar-footer { margin-top: auto; padding: 0 20px; }
+
+.hint-box {
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  padding: 12px;
+  font-size: 11.5px;
+  color: var(--ink3);
+  line-height: 1.6;
+}
+
+.hint-box strong { color: var(--ink2); font-weight: 500; }
+
+/* ── main ── */
+main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+
+.topbar-title { font-family: var(--serif); font-size: 17px; font-style: italic; color: var(--ink); }
+.topbar-sub { font-size: 11.5px; color: var(--ink3); font-weight: 300; margin-top: 2px; }
+
+.btn-ghost {
+  background: none;
+  border: 1px solid var(--rule2);
+  color: var(--ink3);
+  font-family: var(--sans);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-ghost:hover { border-color: var(--ink3); color: var(--ink2); }
+
+/* ── feed ── */
+.feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feed::-webkit-scrollbar { width: 3px; }
+.feed::-webkit-scrollbar-thumb { background: var(--rule2); border-radius: 3px; }
+
+/* ── empty ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.empty-heading {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-style: italic;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.empty-sub {
+  font-size: 13.5px;
+  color: var(--ink3);
+  font-weight: 300;
+  max-width: 320px;
+  line-height: 1.7;
+}
+
+.starter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.starter {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  padding: 13px 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+}
+
+.starter:hover { border-color: var(--amber); background: var(--amber-light); }
+.starter-label { font-size: 10px; color: var(--ink3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.starter-text { font-size: 12.5px; color: var(--ink2); line-height: 1.5; }
+
+/* ── messages ── */
+.msg-row {
+  display: flex;
+  gap: 12px;
+  animation: in 0.2s ease;
+}
+
+@keyframes in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-row.user { flex-direction: row-reverse; }
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.msg-row.user .avatar {
+  background: var(--ink);
+  color: var(--cream);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.msg-row.ai .avatar {
+  background: var(--amber-light);
+  border: 1px solid var(--rule2);
+  font-size: 12px;
+}
+
+.bubble { max-width: 72%; font-size: 13.5px; line-height: 1.7; font-weight: 300; }
+
+.msg-row.user .bubble {
+  background: var(--ink);
+  color: #f5f0e8;
+  padding: 10px 14px;
+  border-radius: 8px 8px 2px 8px;
+}
+
+.file-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  margin-bottom: 5px;
+  opacity: 0.7;
+}
+
+/* ai bubble markdown */
+.bc h1 { font-family: var(--serif); font-size: 19px; font-style: italic; color: var(--ink); margin: 14px 0 5px; font-weight: 400; }
+.bc h2 { font-family: var(--serif); font-size: 16px; font-style: italic; color: var(--ink); margin: 12px 0 4px; font-weight: 400; }
+.bc h3 { font-size: 11px; font-weight: 500; color: var(--ink3); margin: 10px 0 3px; text-transform: uppercase; letter-spacing: 0.6px; }
+.bc p { margin: 5px 0; }
+.bc ul, .bc ol { padding-left: 16px; margin: 5px 0; }
+.bc li { margin: 3px 0; }
+.bc strong { font-weight: 500; color: var(--ink); }
+.bc em { font-style: italic; color: var(--ink2); }
+.bc hr { border: none; border-top: 1px solid var(--rule); margin: 12px 0; }
+.bc code {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--amber);
+}
+.bc pre {
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: 8px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* typing */
+.typing { display: flex; align-items: center; gap: 3px; padding: 4px 0; }
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink3); animation: blink 1.2s ease-in-out infinite; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes blink {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%       { opacity: 1;   transform: scale(1); }
+}
+
+/* ── composer ── */
+.composer-wrap {
+  padding: 14px 24px 20px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.composer {
+  background: white;
+  border: 1px solid var(--rule2);
+  border-radius: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.composer:focus-within {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(200,120,26,0.08);
+}
+
+.chip-row { display: none; align-items: center; gap: 6px; padding: 10px 12px 0; }
+.chip-row.on { display: flex; }
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 3px 8px 3px 9px;
+  font-size: 11.5px;
+  color: var(--ink2);
+}
+
+.chip-x {
+  background: none;
+  border: none;
+  color: var(--ink3);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  margin-left: 2px;
+  transition: background 0.1s;
+}
+.chip-x:hover { background: var(--rule); color: var(--ink); }
+
+.composer-row {
+  display: flex;
+  align-items: flex-end;
+  padding: 10px 10px 10px 14px;
+  gap: 6px;
+}
+
+textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: var(--sans);
+  font-size: 13.5px;
+  font-weight: 300;
+  color: var(--ink);
+  background: transparent;
+  resize: none;
+  max-height: 110px;
+  min-height: 22px;
+  line-height: 1.55;
+  caret-color: var(--amber);
+}
+
+textarea::placeholder { color: var(--ink3); }
+
+.composer-btns { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+.ic-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--ink3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.12s;
+}
+.ic-btn:hover { border-color: var(--rule2); color: var(--ink2); background: var(--cream); }
+
+.send-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  border: none;
+  background: var(--ink);
+  color: var(--cream);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, transform 0.1s;
+}
+.send-btn:hover { background: var(--amber); transform: scale(1.05); }
+.send-btn:disabled { background: var(--rule2); cursor: not-allowed; transform: none; }
+.send-btn svg { width: 13px; height: 13px; }
+
+.composer-meta { font-size: 11px; color: var(--ink3); text-align: right; margin-top: 7px; font-weight: 300; }
+
+/* ── toast ── */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: var(--ink);
+  color: var(--cream);
+  font-size: 12.5px;
+  font-family: var(--sans);
+  padding: 8px 16px;
+  border-radius: 5px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s;
+  z-index: 999;
+  white-space: nowrap;
+  font-weight: 300;
+}
+.toast.on  { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err { background: var(--red); }
+
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <aside>
+    <div class="brand">
+      <div class="brand-name">Study<span>Mind</span></div>
+      <div class="brand-tag">AI study assistant</div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:20px">
+      <div class="sidebar-label">Mode</div>
+      <ul class="mode-list">
+        <li><button class="mode-item active" onclick="pickMode(this, '')"><span class="mode-icon">◈</span> Auto-detect</button></li>
+        <li><button class="mode-item" onclick="pickMode(this, 'teach me about')"><span class="mode-icon">✦</span> Explain topic</button></li>
+        <li><button class="mode-item" onclick="pickMode(this, 'give me flashcards on')"><span class="mode-icon">⊞</span> Flashcards</button></li>
+        <li><button class="mode-item" onclick="pickMode(this, 'quiz me on')"><span class="mode-icon">◎</span> Quiz me</button></li>
+        <li><button class="mode-item" onclick="pickMode(this, 'make a revision plan for')"><span class="mode-icon">≡</span> Revision plan</button></li>
+      </ul>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-footer">
+      <div class="hint-box">
+        <strong>Tip</strong> — paste your notes or upload a PDF and I'll generate a full study pack: summary, flashcards, quiz, and a 7-day plan.
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">New session</div>
+        <div class="topbar-sub">Ready to help you study</div>
+      </div>
+      <button class="btn-ghost" onclick="clearChat()">Clear</button>
+    </div>
+
+    <div class="feed" id="feed">
+      <div class="empty" id="empty">
+        <div class="empty-heading">What are we learning today?</div>
+        <div class="empty-sub">Drop your notes, upload a PDF, or just name a topic. I'll handle the rest.</div>
+        <div class="starter-grid">
+          <button class="starter" onclick="fill('Teach me about photosynthesis')">
+            <div class="starter-label">Explain</div>
+            <div class="starter-text">Teach me about photosynthesis</div>
+          </button>
+          <button class="starter" onclick="fill('Quiz me on Newton\'s laws of motion')">
+            <div class="starter-label">Quiz</div>
+            <div class="starter-text">Quiz me on Newton's laws</div>
+          </button>
+          <button class="starter" onclick="fill('Give me flashcards on Java OOP')">
+            <div class="starter-label">Flashcards</div>
+            <div class="starter-text">Flashcards on Java OOP concepts</div>
+          </button>
+          <button class="starter" onclick="fill('Make a revision plan for organic chemistry')">
+            <div class="starter-label">Plan</div>
+            <div class="starter-text">Revision plan for organic chemistry</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer">
+        <div class="chip-row" id="chipRow">
+          <div class="file-chip">
+            <span>📄</span>
+            <span id="chipName">file.pdf</span>
+            <button class="chip-x" onclick="removeFile()">✕</button>
+          </div>
+        </div>
+        <div class="composer-row">
+          <textarea id="input" rows="1"
+            placeholder="Ask a question, paste notes, or pick a mode…"
+            onkeydown="onKey(event)"
+            oninput="grow(this)"></textarea>
+          <div class="composer-btns">
+            <label class="ic-btn" title="Attach PDF" style="cursor:pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+              </svg>
+              <input type="file" id="fileInput" accept=".pdf" style="display:none" onchange="onFile(event)">
+            </label>
+            <button class="send-btn" id="sendBtn" onclick="send()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="composer-meta">⌘ Enter to send</div>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WEBHOOK = 'http://localhost:5678/webhook/bd11adae-a105-4c9c-af5d-19bcf81f4ae2';
+
+let file = null;
+let busy = false;
+
+function pickMode(el, prefix) {
+  document.querySelectorAll('.mode-item').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const inp = document.getElementById('input');
+  if (prefix) {
+    inp.value = prefix + ' ';
+    inp.focus();
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+  }
+  grow(inp);
+}
+
+function fill(text) {
+  const inp = document.getElementById('input');
+  inp.value = text;
+  inp.focus();
+  grow(inp);
+}
+
+function onFile(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  file = f;
+  document.getElementById('chipName').textContent = f.name;
+  document.getElementById('chipRow').classList.add('on');
+  toast('Attached: ' + f.name);
+}
+
+function removeFile() {
+  file = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('chipRow').classList.remove('on');
+}
+
+async function send() {
+  const inp = document.getElementById('input');
+  const text = inp.value.trim();
+  if (!text && !file) return;
+  if (busy) return;
+
+  document.getElementById('empty')?.remove();
+  appendUser(text, file?.name);
+
+  inp.value = '';
+  grow(inp);
+  const f = file;
+  removeFile();
+
+  const tid = appendTyping();
+  busy = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  try {
+    let res;
+    if (f) {
+      const fd = new FormData();
+      fd.append('chatInput', text || 'process this document and generate a full study pack');
+      fd.append('sessionId', sid());
+      fd.append('data', f, f.name);
+      res = await fetch(WEBHOOK, { method: 'POST', body: fd });
+    } else {
+      res = await fetch(WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatInput: text, sessionId: sid() })
+      });
+    }
+    removeTyping(tid);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    appendAI(extract(data));
+  } catch (e) {
+    removeTyping(tid);
+    appendAI('Could not reach n8n — check your webhook URL and make sure the workflow is active.\n\n`' + e.message + '`');
+    toast('Connection failed', true);
+  }
+
+  busy = false;
+  document.getElementById('sendBtn').disabled = false;
+  inp.focus();
+}
+
+function extract(d) {
+  if (typeof d === 'string') return d;
+  if (d.output) return d.output;
+  if (d.text)   return d.text;
+  if (d.message) return d.message;
+  if (d.response) return d.response;
+  if (Array.isArray(d)) {
+    const x = d[0];
+    if (!x) return 'No response received.';
+    return x.output || x.text || x.message || x.response || JSON.stringify(x, null, 2);
+  }
+  return JSON.stringify(d, null, 2);
+}
+
+function appendUser(text, fname) {
+  const feed = document.getElementById('feed');
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `
+    <div class="avatar">you</div>
+    <div class="bubble">
+      ${fname ? `<div class="file-tag">📄 ${esc(fname)}</div>` : ''}
+      ${text ? `<div>${esc(text)}</div>` : ''}
+    </div>`;
+  feed.appendChild(row);
+  scrollDown();
+}
+
+function appendAI(text) {
+  const feed = document.getElementById('feed');
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  row.innerHTML = `
+    <div class="avatar">✦</div>
+    <div class="bubble">
+      <div class="bc">${md(text)}</div>
+    </div>`;
+  feed.appendChild(row);
+  scrollDown();
+}
+
+function appendTyping() {
+  const feed = document.getElementById('feed');
+  const id = 'ty' + Date.now();
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  row.id = id;
+  row.innerHTML = `
+    <div class="avatar">✦</div>
+    <div class="bubble">
+      <div class="typing">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>`;
+  feed.appendChild(row);
+  scrollDown();
+  return id;
+}
+
+function removeTyping(id) { document.getElementById(id)?.remove(); }
+
+function scrollDown() {
+  const f = document.getElementById('feed');
+  f.scrollTop = f.scrollHeight;
+}
+
+function clearChat() {
+  document.getElementById('feed').innerHTML = `
+    <div class="empty" id="empty">
+      <div class="empty-heading">What are we learning today?</div>
+      <div class="empty-sub">Drop your notes, upload a PDF, or just name a topic.</div>
+      <div class="starter-grid">
+        <button class="starter" onclick="fill('Teach me about photosynthesis')"><div class="starter-label">Explain</div><div class="starter-text">Teach me about photosynthesis</div></button>
+        <button class="starter" onclick="fill('Quiz me on Newton\\'s laws of motion')"><div class="starter-label">Quiz</div><div class="starter-text">Quiz me on Newton's laws</div></button>
+        <button class="starter" onclick="fill('Give me flashcards on Java OOP')"><div class="starter-label">Flashcards</div><div class="starter-text">Flashcards on Java OOP concepts</div></button>
+        <button class="starter" onclick="fill('Make a revision plan for organic chemistry')"><div class="starter-label">Plan</div><div class="starter-text">Revision plan for organic chemistry</div></button>
+      </div>
+    </div>`;
+  localStorage.removeItem('_sid');
+}
+
+function md(raw) {
+  let s = esc(raw);
+  s = s.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
+  s = s.replace(/`([^`\n]+)`/g,     '<code>$1</code>');
+  s = s.replace(/\*\*(.+?)\*\*/g,   '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g,       '<em>$1</em>');
+  s = s.replace(/^# (.+)$/gm,       '<h1>$1</h1>');
+  s = s.replace(/^## (.+)$/gm,      '<h2>$1</h2>');
+  s = s.replace(/^### (.+)$/gm,     '<h3>$1</h3>');
+  s = s.replace(/^[-–]{3,}$/gm,     '<hr>');
+  s = s.replace(/^[•\-] (.+)$/gm,   '<li>$1</li>');
+  s = s.replace(/^\d+\. (.+)$/gm,   '<li>$1</li>');
+  s = s.replace(/\n\n/g, '</p><p>');
+  s = s.replace(/\n/g, '<br>');
+  return '<p>' + s + '</p>';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function grow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
+}
+
+function onKey(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); send(); }
+}
+
+function sid() {
+  let s = localStorage.getItem('_sid');
+  if (!s) { s = Math.random().toString(36).slice(2); localStorage.setItem('_sid', s); }
+  return s;
+}
+
+function toast(msg, err = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast on' + (err ? ' err' : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('on'), 3000);
+}
+</script>
+</body>
+</html>
+
+<!-- python3 -m http.server 5500 -->

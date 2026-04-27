@@ -1,0 +1,518 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bd11adae-a105-4c9c-af5d-19bcf81f4ae2",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        336,
+        640
+      ],
+      "id": "506108d5-e26d-4f96-837a-ffdffcb5f41c",
+      "name": "Webhook",
+      "webhookId": "bd11adae-a105-4c9c-af5d-19bcf81f4ae2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond-binary",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "leftValue": "={{ $binary }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6ba3493e-64e8-4f2f-9694-56a0a077e068",
+      "name": "Has PDF Attachment?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        592,
+        640
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst binary = item.binary || {};\nconst chatInput = item.json.chatInput || item.json.body?.chatInput || '';\nconst sessionId = item.json.sessionId || item.json.body?.sessionId || 'default-session';\n\nconst binaryKeys = Object.keys(binary);\nif (binaryKeys.length === 0) {\n  throw new Error('No binary file found in input.');\n}\n\nconst binaryKey = binaryKeys[0];\nconst binaryData = binary[binaryKey];\n\nreturn {\n  json: { chatInput, binaryKey, sessionId },\n  binary: {\n    data: binaryData\n  }\n};"
+      },
+      "id": "918cce64-462f-41cd-ba0e-76517510661d",
+      "name": "Extract PDF via Code",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        832,
+        320
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "cff9b6e0-6856-4229-a32b-140940eaa8be",
+      "name": "Extract Text from PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        1072,
+        320
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst pdfText = item.json.text || '';\nconst chatInput = $('Extract PDF via Code').first().json.chatInput || '';\nconst sessionId = $('Extract PDF via Code').first().json.sessionId || 'default-session';\n\nif (!pdfText.trim()) {\n  throw new Error('PDF appears to be image-based or empty. Please use a text-based PDF.');\n}\n\nconst words = pdfText.trim().split(/\\s+/);\nconst chunkSize = 400;\nconst overlap = 50;\nconst chunks = [];\n\nfor (let i = 0; i < words.length; i += chunkSize - overlap) {\n  const chunk = words.slice(i, i + chunkSize).join(' ');\n  if (chunk.trim()) chunks.push(chunk);\n}\n\nreturn chunks.map((chunk, index) => ({\n  json: {\n    chunk,\n    chunkIndex: index,\n    totalChunks: chunks.length,\n    chatInput,\n    sessionId,\n    source: 'PDF Upload'\n  }\n}));"
+      },
+      "id": "f2a358ae-68a4-41fb-973c-5cccf8629ea7",
+      "name": "Chunk PDF Text",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1312,
+        320
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=AIzaSyCIGzQUSdaH6L8yPxeD9zZzYmL__GOP1UA",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "8e02d0bc-0489-4d4e-b88c-30e8acbd1894",
+      "name": "Embed Chunks via Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1552,
+        320
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (!global.vectorStore) {\n  global.vectorStore = {};\n}\n\nconst sessionId = items[0]?.json.sessionId || 'default-session';\nconst chatInput = items[0]?.json.chatInput || '';\n\nglobal.vectorStore[sessionId] = items.map(item => ({\n  chunk: item.json.chunk,\n  chunkIndex: item.json.chunkIndex,\n  embedding: item.json.embedding?.values || []\n}));\n\nreturn [{\n  json: {\n    chatInput,\n    sessionId,\n    chunksStored: items.length,\n    inputSource: 'PDF Upload',\n    ragReady: true,\n    studyContent: chatInput,\n    userRequest: chatInput,\n    retrievedContext: ''\n  }\n}];"
+      },
+      "id": "5939db93-b891-4fe0-be9c-b187792f3e93",
+      "name": "Store Vectors In-Memory",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1792,
+        320
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst chatInput = item.json.chatInput || item.json.body?.chatInput || '';\nconst sessionId = item.json.sessionId || item.json.body?.sessionId || 'default-session';\n\nconst store = global.vectorStore?.[sessionId] || [];\nconst hasVectorData = store.length > 0;\n\nreturn [{\n  json: {\n    chatInput: chatInput.trim(),\n    sessionId,\n    studyContent: chatInput.trim(),\n    userRequest: chatInput.trim(),\n    inputSource: 'Text Input',\n    hasVectorData\n  }\n}];"
+      },
+      "id": "54d2546f-3472-4e5f-8ae6-726c4a09f28a",
+      "name": "Build Context from Text",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        832,
+        832
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond-has-vector",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.hasVectorData }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "323ebd4c-e5b5-49d6-901d-8dbfb48b8e66",
+      "name": "Has Vector Data?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1072,
+        832
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=AIzaSyCIGzQUSdaH6L8yPxeD9zZzYmL__GOP1UA",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "768e72d9-5f68-4d51-96aa-ea2010019dda",
+      "name": "Embed Query via Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1312,
+        720
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst queryEmbedding = item.json.embedding?.values || [];\n\nconst chatInput = $('Build Context from Text').first().json.chatInput || '';\nconst sessionId = $('Build Context from Text').first().json.sessionId || 'default-session';\n\nfunction cosineSim(a, b) {\n  let dot = 0, normA = 0, normB = 0;\n  for (let i = 0; i < a.length; i++) {\n    dot   += a[i] * b[i];\n    normA += a[i] * a[i];\n    normB += b[i] * b[i];\n  }\n  return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-10);\n}\n\nconst store = global.vectorStore?.[sessionId] || [];\nlet retrievedContext = '';\n\nif (store.length > 0 && queryEmbedding.length > 0) {\n  const scored = store.map(entry => ({\n    chunk: entry.chunk,\n    score: cosineSim(queryEmbedding, entry.embedding)\n  }));\n  scored.sort((a, b) => b.score - a.score);\n  retrievedContext = scored.slice(0, 3).map(r => r.chunk).join('\\n\\n---\\n\\n');\n}\n\nreturn [{\n  json: {\n    chatInput,\n    sessionId,\n    studyContent: chatInput,\n    userRequest: chatInput,\n    inputSource: 'Text Input',\n    retrievedContext,\n    hasContext: retrievedContext.length > 0\n  }\n}];"
+      },
+      "id": "6bbb40d5-7435-445e-a330-e4a4b047da8b",
+      "name": "Cosine Similarity Search",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1552,
+        720
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst studyContent = item.studyContent || '';\nconst userRequest  = item.userRequest  || '';\nconst inputSource  = item.inputSource  || 'Unknown';\nconst sessionId    = item.sessionId    || 'default-session';\nconst retrievedContext = item.retrievedContext || '';\n\nconst req = userRequest.toLowerCase();\n\nlet intent = 'explain';\n\nif (/quiz|test me|question me|examine me/.test(req))                                           intent = 'quiz';\nelse if (/flashcard|flash card|key terms|key concepts|cards/.test(req))                        intent = 'flashcards';\nelse if (/revision plan|study plan|schedule|timetable|plan my/.test(req))                      intent = 'revision_plan';\nelse if (/explain|summarize|summary|what is|teach me|help me understand|tell me about|about/.test(req)) intent = 'explain';\n\nconst finalContent = studyContent.length > 30 ? studyContent : userRequest;\n\nreturn [{\n  json: {\n    studyContent: finalContent,\n    userRequest,\n    inputSource,\n    intent,\n    sessionId,\n    retrievedContext\n  }\n}];"
+      },
+      "id": "9b63bd52-49da-4ccc-9cbc-f5922a4450fc",
+      "name": "Detect User Intent",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1792,
+        640
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an intelligent, adaptive, and empathetic AI Study Assistant powered by Retrieval-Augmented Generation (RAG).\n\nYour goal is to HELP the user learn effectively using:\n\n1. Retrieved knowledge (PRIMARY source)\n2. Your own knowledge (SECONDARY fallback)\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📥 INPUT\n━━━━━━━━━━━━━━━━━━━━━━━\nUser Request: {{ $json.userRequest || $('Webhook').first().json.body.chatInput }}\nStudy Content: {{ $json.studyContent || $('Webhook').first().json.body.chatInput }}\nRetrieved Context: {{ $json.retrievedContext || '' }}\nIntent (if provided): {{ $json.intent }}\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🧠 STEP 0: CONTEXT PRIORITY (CRITICAL)\n━━━━━━━━━━━━━━━━━━━━━━━\n\nFollow this strict order:\n\n1. If Retrieved Context is NOT empty:\n   → Treat it as the MOST TRUSTED source\n   → Base your answer primarily on it\n\n2. If context is partial:\n   → Combine context + your knowledge\n\n3. If no context:\n   → Answer normally\n\n4. If context seems irrelevant:\n   → Ignore it and proceed normally\n\nNEVER ignore valid retrieved context.\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🧠 STEP 1: UNDERSTAND USER (REASON)\n━━━━━━━━━━━━━━━━━━━━━━━\n\nAnalyze:\n\n1. Intent Type:\n\n* simple_math\n* factual\n* conceptual\n* exam_prep\n* quiz\n* flashcards\n* revision_plan\n  (Default → conceptual)\n\n2. Depth Level:\n\n* quick\n* detailed\n* deep_dive\n\n3. Emotional Tone:\n\n* confused\n* stressed\n* curious\n* goal-oriented\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🛠️ STEP 2: TOOL USAGE (ACT)\n━━━━━━━━━━━━━━━━━━━━━━━\n\nUse tools intelligently:\n\n* Calculator → ALL math problems → return only answer\n* Wikipedia → ONLY if:\n  → No retrieved context AND factual info needed\n\nIMPORTANT:\n\n* Retrieved Context is ALWAYS preferred over Wikipedia\n* Do NOT use Wikipedia if RAG already provides answer\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📤 STEP 3: RESPONSE GENERATION (COMMUNICATE)\n━━━━━━━━━━━━━━━━━━━━━━━\n\n━━━━━━━━━━━\nIF simple_math:\n━━━━━━━━━━━\nReturn only the answer\n\n━━━━━━━━━━━\nIF conceptual / factual:\n━━━━━━━━━━━\n\n## 📖 [Topic Name]\n\nStart with:\n\n* Simple explanation (1–2 lines)\n\nIF Retrieved Context exists:\n→ Add section:\n**From your study material:**\n\n* Summarize key points clearly\n\nThen based on depth:\n\nIF quick:\n→ concise\n\nIF detailed:\n→ Key Concepts\n→ Step-by-step explanation\n→ Real-life example\n\nIF deep_dive:\n→ Internal working\n→ Why it works\n→ Use cases\n→ Common mistakes\n\n━━━━━━━━━━━\nIF exam_prep:\n━━━━━━━━━━━\n\n## 🎯 Exam Ready: [Topic]\n\nIF Retrieved Context exists:\n→ Prioritize exam points from it\n\n* Important definitions\n* Key bullet points\n* Frequently asked questions\n* Short answers\n* Quick revision tips\n\nIF stressed:\n→ Keep it crisp and high-yield\n\n━━━━━━━━━━━\nIF quiz:\n━━━━━━━━━━━\n\n## 📝 Quiz: [Topic]\n\nIF Retrieved Context exists:\n→ Generate questions FROM it\n\n5–10 questions\n(Add answers at end)\n\n━━━━━━━━━━━\nIF flashcards:\n━━━━━━━━━━━\n\n## 🃏 Flashcards: [Topic]\n\nUse retrieved context if available\n\nMax 10 cards\n\n━━━━━━━━━━━\nIF revision_plan:\n━━━━━━━━━━━\n\n## 📅 Study Plan: [Topic]\n\nUse context to tailor plan if available\n\n━━━━━━━━━━━━━━━━━━━━━━━\n💬 STYLE RULES\n━━━━━━━━━━━━━━━━━━━━━━━\n\n* Simple English\n* Friendly and encouraging\n* If confused → explain clearly\n* If stressed → concise\n* Always include real-life examples (except math)\n* Do NOT mention:\n  → \"retrieved context\"\n  → \"RAG\"\n  → \"tool usage\"\n\n━━━━━━━━━━━━━━━━━━━━━━━\n⚠️ HALLUCINATION CONTROL\n━━━━━━━━━━━━━━━━━━━━━━━\n\n* Do NOT invent facts outside context unless necessary\n* If context is insufficient:\n  → Say clearly and supplement carefully\n\n━━━━━━━━━━━━━━━━━━━━━━━\n✅ STEP 4: SELF-CHECK (EVALUATE)\n━━━━━━━━━━━━━━━━━━━━━━━\n\nEnsure:\n✔ Context used when available\n✔ Answer grounded in retrieved data\n✔ Matches intent + depth\n✔ Clear and structured\n✔ No unnecessary text\n\nThen output final answer.\n",
+        "options": {
+          "systemMessage": "You are a warm, expert, encouraging Study Assistant AI. Make complex topics easy to understand. Use simple language, real-world examples, friendly tone, and clear formatting with emojis. When retrieved document context is provided, always use it as your PRIMARY source of truth."
+        }
+      },
+      "id": "42840962-87a5-48d1-8138-f387aee1f7da",
+      "name": "AI Study Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        2032,
+        640
+      ],
+      "typeVersion": 1.7
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId || $('Webhook').first().json.body.sessionId || 'default-session' }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2032,
+        848
+      ],
+      "id": "c4e4f4d4-d59a-48b5-bb78-3e3ddc53ff07",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolWikipedia",
+      "typeVersion": 1,
+      "position": [
+        2432,
+        912
+      ],
+      "id": "d32d6567-d7c2-4088-a352-6513d845e511",
+      "name": "Wikipedia"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        912
+      ],
+      "id": "1af58c33-6ccf-496a-bc0e-a3d5bc644ae8",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ output: $json.output || $json.text || '' }) }}",
+        "options": {}
+      },
+      "id": "5b0c4ea3-1dda-4311-9790-337e67d4f484",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        2272,
+        640
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1904,
+        848
+      ],
+      "id": "cf3c278e-f715-46df-9ce3-cf04b6558b29",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Wvx8gmLfkdrFOuTP",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Has PDF Attachment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has PDF Attachment?": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF via Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Context from Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF via Code": {
+      "main": [
+        [
+          {
+            "node": "Extract Text from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text from PDF": {
+      "main": [
+        [
+          {
+            "node": "Chunk PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Embed Chunks via Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Chunks via Gemini": {
+      "main": [
+        [
+          {
+            "node": "Store Vectors In-Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Vectors In-Memory": {
+      "main": [
+        [
+          {
+            "node": "Detect User Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context from Text": {
+      "main": [
+        [
+          {
+            "node": "Has Vector Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Vector Data?": {
+      "main": [
+        [
+          {
+            "node": "Embed Query via Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Detect User Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Query via Gemini": {
+      "main": [
+        [
+          {
+            "node": "Cosine Similarity Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cosine Similarity Search": {
+      "main": [
+        [
+          {
+            "node": "Detect User Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect User Intent": {
+      "main": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Study Assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wikipedia": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Study Assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1cf1fd656e07b0955c7c5e8de2ba06a7e81a9c1247b895637116408724cc641e"
+  }
+}
